@@ -1,9 +1,6 @@
 package dk.lockfuglsang.minecraft.po;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -17,7 +14,8 @@ import java.util.zip.ZipInputStream;
 /**
  * Convenience util for supporting static imports.
  */
-public enum I18nUtil {;
+public enum I18nUtil {
+    ;
     private static final Logger log = Logger.getLogger(I18nUtil.class.getName());
     private static I18n i18n;
     private static Locale locale;
@@ -26,6 +24,7 @@ public enum I18nUtil {;
     public static String tr(String s) {
         return getI18n().tr(s);
     }
+
     public static String tr(String s, Object... args) {
         return getI18n().tr(s, args);
     }
@@ -87,7 +86,7 @@ public enum I18nUtil {;
     /**
      * Proxy between uSkyBlock and org.xnap.commons.i18n.I18n
      */
-    public static class I18n  {
+    public static class I18n {
         private final Locale locale;
         private List<Properties> props;
 
@@ -96,9 +95,24 @@ public enum I18nUtil {;
             props = new ArrayList<>();
             addPropsFromPluginFolder();
             addPropsFromJar();
+            addPropsFromZipInJar();
         }
 
         private void addPropsFromJar() {
+            try (InputStream in = getClass().getClassLoader().getResourceAsStream("po/" + locale + ".po")) {
+                if (in == null) {
+                    return;
+                }
+                Properties i18nProps = POParser.asProperties(in);
+                if (i18nProps != null && !i18nProps.isEmpty()) {
+                    props.add(i18nProps);
+                }
+            } catch (IOException e) {
+                log.info("Unable to read translations from po/" + locale + ".po: " + e);
+            }
+        }
+
+        private void addPropsFromZipInJar() {
             // We zip the .po files, since they are currently half the footprint of the jar.
             try (
                     InputStream in = getClass().getClassLoader().getResourceAsStream("i18n.zip");
@@ -115,7 +129,7 @@ public enum I18nUtil {;
                     }
                 } while (nextEntry != null);
             } catch (IOException e) {
-                log.info("Unable to load translations from i18n.zip!" + locale + ".po: "+ e);
+                log.info("Unable to load translations from i18n.zip!" + locale + ".po: " + e);
             }
         }
 
